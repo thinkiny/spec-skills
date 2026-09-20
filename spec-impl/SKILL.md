@@ -1,39 +1,50 @@
 ---
 name: spec-impl
-description: Plan, implement, test, and verify one approved system use case from docs/spec, then record implementation conformance. Use when explicitly invoked to implement approved behavior, synchronize code with a revised use case, repair implementation drift, or produce a plan-only implementation analysis.
+description: Plan, implement, test, and verify one approved system use case from docs/spec, then record implementation conformance. Use when explicitly invoked to implement approved behavior, synchronize code with a revised use case, or repair implementation drift.
 disable-model-invocation: true
 user-invocable: true
-argument-hint: "<domain>/<use-case> [plan only]"
+argument-hint: "<domain>/<use-case>"
 ---
 
 # Implement Use Case
 
-Plan and execute the smallest code-and-test change that makes implementation conform to one reviewed use case. Specifications define observable behavior; repository rules and existing architecture define implementation.
+Plan and execute the smallest code-and-test change that makes implementation conform to one reviewed use case. In an adopted workflow, accepted specifications define intended observable behavior; repository rules and existing architecture define how that behavior is implemented, and code and tests describe the observed implementation.
 
 ## Input
 
-The user supplies a use-case path or a domain plus use-case name. `plan only` stops after the approved planning stage without implementation edits.
+The user supplies a use-case path or a domain plus use-case name. If the specification cannot be found, try the current open file before asking for its path.
+
+## User Decisions and Clarifications
+
+Whenever this workflow needs a user choice or clarification to produce a complete implementation plan, call `AskUserQuestion`. Do not bury unresolved choices in narrative text, the plan, risks, or the completion report. Give only the context needed for the choice, offer concrete mutually exclusive options, and put the recommended option first with `(Recommended)` when appropriate. Do not ask the user to decide facts that the accepted specification or repository evidence already establishes.
+
+Behavioral decisions belong in `/spec-uc`, and foundation decisions belong in `/spec-domain`; route them there rather than deciding them during implementation. Use the host's native plan-and-approval mechanism for approval of the completed implementation plan itself, without duplicating that approval through `AskUserQuestion`.
 
 ## Preconditions
 
 1. Read `docs/spec/catalog.md`, the domain `catalog.md`, `entity-model.md`, and selected use case.
 2. Read repository instructions and inspect working-tree changes.
-3. Require `Approved` for new or changed behavior.
+3. Require `Approved` for new or changed behavior and for an `Approved Removal` artifact.
 4. Accept `Implemented` only for conformance checking, repair, or behavior-preserving work.
-5. Reject `Draft` or `Review` and direct the user to `/spec-uc`.
-6. Reject any `## Open Questions` heading, even when empty.
-7. Never remove or answer Open Questions automatically; `/spec-uc` must resolve them and establish `Approved`.
-8. For removal with no enduring interaction, require the explicitly accepted removal packet from `/spec-uc` in the current conversation and keep the existing `Approved` or `Implemented` file until code and tests are removed successfully.
-9. Confirm one goal, observable flows, explicit outcomes, and terminology consistent with the domain and Entity Model.
+5. Reject `Draft`, `Review`, or any `## Open Questions` heading. Never remove or answer Open Questions; `/spec-uc` must resolve them and establish `Approved`.
+6. When the file contains `## Approved Removal`, require the durable removal fields defined by `/spec-uc`, plan against the required observable absence, and skip the normal use-case structure checks below.
+7. For every normal use case, require exactly one Status line and exactly one Goal, Actors, Preconditions, Trigger, Behavior Diagrams, Main Flow, and Postconditions section. Require Behavior Diagrams between Trigger and Main Flow with an `### Overview` subsection containing exactly one fenced `mermaid` block and no more than three named process diagrams with one Mermaid block each. Return a structurally incomplete artifact to `/spec-uc` before planning.
+8. Confirm a normal file covers one complete externally meaningful primary-actor goal. If it is only an endpoint, button, CRUD operation, validation, internal component, or flow-step fragment—or if it bundles independent goals, triggers, or outcomes—stop and return it to `/spec-uc`. Do not split, merge, or compensate for its boundary during implementation.
 
 If requested behavior is absent or implementation discovery exposes a missing product decision, stop and return to `/spec-uc`. Never modify a specification to rationalize accidental code behavior.
+
+## Specification Authority and Conflicts
+
+Accepted specifications govern intended behavior. Repository rules and architecture govern implementation choices, and code and tests establish observed implementation; they do not override an accepted contract. Treat a mismatch as implementation drift.
+
+If specification artifacts conflict, stop before planning or editing implementation and identify the exact contradiction for human resolution. Return product-definition, domain-boundary, requirement, Entity Model, shared-policy, or shared-terminology conflicts to `/spec-domain`. Return conflicts in one interaction's goal, boundary, flow, outcome, or status to `/spec-uc`.
 
 ## Stage 1 — Inspect and Plan
 
 1. Trace the installed or public execution path.
 2. Locate existing responsibilities, domain types, validation, error boundaries, reusable utilities, and relevant tests.
-3. Compare current observable behavior with the domain catalog, Entity Model, and every textual use-case section.
-4. When a Behavior Diagram exists, verify it is syntactically valid when a renderer is available and is a faithful projection of the authoritative text. Return contradictions to `/spec-uc`.
+3. Compare current observable behavior with every relevant accepted specification: the root and domain catalogs, Entity Model, selected use case, and related accepted use cases whose contracts overlap.
+4. For a normal use case, verify the required Behavior Diagrams overview is syntactically valid with an available renderer, or manually inspect it and report renderer unavailability. Verify any named process diagrams against the authoritative text and return contradictions to `/spec-uc`.
 5. Determine whether the implementation already conforms. If it does, plan only the necessary verification and status result; do not manufacture code changes.
 6. Otherwise identify the smallest coherent behavioral delta while preserving unrelated architecture and user changes.
 7. Map the contract to verification:
@@ -77,7 +88,7 @@ Present:
 ## Risks and Non-Goals
 ```
 
-Use the host's native plan-and-approval mechanism when available. A host-required transient plan record is not a project specification. Do not edit code, tests, or status before approval. Stop here for `plan only`.
+Use the host's native plan-and-approval mechanism when available. An implementation plan is a transient planning record, not a `docs/spec` artifact; do not store it under `docs/spec`. Do not edit code, tests, or status before approval.
 
 ## Stage 2 — Establish the Baseline
 
@@ -121,7 +132,7 @@ Review the final implementation against:
 - every main-flow step;
 - meaningful alternate and exception flows;
 - success and failure postconditions;
-- Behavior Diagram consistency when present.
+- Required Behavior Diagrams overview, named process diagrams, Mermaid validity, and text consistency for a normal use case.
 
 Report exact command results and distinguish pre-existing, introduced, skipped, and unavailable checks. Compilation or inspection alone does not establish conformance when behavior-derived tests are required.
 
@@ -135,7 +146,7 @@ Promote `Approved` to `Implemented` only when:
 
 If evidence is incomplete, leave `Approved`. A behavior-preserving refactor may retain `Implemented` after tests pass. `Implemented` does not mean deployed, enabled in production, operationally healthy, or free from every defect.
 
-For an explicitly approved removal with no enduring interaction, delete the use-case file and its domain-catalog row only after code and behavior-derived tests are removed or updated and all required validation passes. Until then, keep the original file and status. Report the final result as `Removed`; no status file remains.
+For an `Approved Removal` artifact, delete the use-case file and its domain-catalog row only after the specified behavior and behavior-derived tests are removed or updated, the required observable absence is verified, and all required validation passes. Until then, preserve the artifact and catalog row so interrupted work remains recoverable. Report the final result as `Removed`; no status file remains.
 
 ## Completion Report
 
