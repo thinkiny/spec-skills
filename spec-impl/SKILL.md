@@ -1,7 +1,6 @@
 ---
 name: spec-impl
-description: Plan, implement, test, and verify one approved system use case from docs/spec, then record implementation conformance. Use when explicitly invoked to implement approved behavior, synchronize code with a revised use case, or repair implementation drift.
-disable-model-invocation: true
+description: Plan, implement, test, and verify one approved system use case from docs/spec, then record implementation conformance. Use when invoked directly or continued after explicit user consent from another specification skill to implement approved behavior, synchronize code with a revised use case, or repair implementation drift.
 user-invocable: true
 argument-hint: "<domain>/<use-case>"
 ---
@@ -14,11 +13,15 @@ Plan and execute the smallest code-and-test change that makes implementation con
 
 The user supplies a use-case path or a domain plus use-case name. If the specification cannot be found, try the current open file before asking for its path.
 
-## User Decisions and Clarifications
+## User Decisions, Stage Gates, and Skill Continuation
 
 Whenever this workflow needs a user choice or clarification to produce a complete implementation plan, call `AskUserQuestion`. Do not bury unresolved choices in narrative text, the plan, risks, or the completion report. Give only the context needed for the choice, offer concrete mutually exclusive options, and put the recommended option first with `(Recommended)` when appropriate. Do not ask the user to decide facts that the accepted specification or repository evidence already establishes.
 
-Behavioral decisions belong in `/spec-uc`, and foundation decisions belong in `/spec-domain`; route them there rather than deciding them during implementation. Use the host's native plan-and-approval mechanism for approval of the completed implementation plan itself, without duplicating that approval through `AskUserQuestion`.
+An actionable stage gate is a point where the user must authorize a persisted state transition, choose whether work advances, or transfer control to another specification skill. Use `AskUserQuestion` at every actionable stage gate except approval of the completed implementation plan. That plan uses the host's native plan-and-approval mechanism as the sole exception and must not receive duplicate `AskUserQuestion` approval. Narrative text alone never authorizes any other advancement. After plan approval, deterministic baseline work, implementation, testing, recovery, validation, and status calculation continue without another prompt unless a material replan or new decision is required.
+
+For a cross-skill handoff, ask whether to continue and name the target skill, artifact, reason, and recommended action. If the user selects continuation, immediately invoke the target through the host's skill mechanism with the resolved path and intent. Never invoke another skill merely because it appears relevant. If invocation is unavailable or permission is denied, preserve the current state, report the limitation, and provide the exact manual command as a fallback.
+
+Behavioral decisions belong in `/spec-uc`, and foundation decisions belong in `/spec-domain`. When either is required, use the consented cross-skill handoff instead of deciding it during implementation.
 
 ## Preconditions
 
@@ -26,31 +29,34 @@ Behavioral decisions belong in `/spec-uc`, and foundation decisions belong in `/
 2. Read repository instructions and inspect working-tree changes.
 3. Require `Approved` for new or changed behavior and for an `Approved Removal` artifact.
 4. Accept `Implemented` only for conformance checking, repair, or behavior-preserving work.
-5. Reject `Draft`, `Review`, or any `## Open Questions` heading. Never remove or answer Open Questions; `/spec-uc` must resolve them and establish `Approved`.
+5. Reject `Draft`, `Review`, or any `## Open Questions` heading. Never remove or answer Open Questions; use `AskUserQuestion` to offer direct continuation with `/spec-uc` so it can resolve them and establish `Approved`.
 6. When the file contains `## Approved Removal`, require the durable removal fields defined by `/spec-uc`, plan against the required observable absence, and skip the normal use-case structure checks below.
-7. For every normal use case, require exactly one Status line and exactly one Goal, Actors, Preconditions, Trigger, Behavior Diagrams, Main Flow, and Postconditions section. Require Behavior Diagrams between Trigger and Main Flow with an `### Overview` subsection containing exactly one fenced `mermaid` block and no more than three named process diagrams with one Mermaid block each. Return a structurally incomplete artifact to `/spec-uc` before planning.
-8. Confirm a normal file covers one complete externally meaningful primary-actor goal. If it is only an endpoint, button, CRUD operation, validation, internal component, or flow-step fragment—or if it bundles independent goals, triggers, or outcomes—stop and return it to `/spec-uc`. Do not split, merge, or compensate for its boundary during implementation.
+7. For every normal use case, require exactly one Status line and exactly one Goal, Actors, Preconditions, Trigger, Behavior Diagrams, Main Flow, and Postconditions section. Require Behavior Diagrams between Trigger and Main Flow with an `### Overview` subsection containing exactly one fenced `mermaid` block and no more than three named process diagrams with one Mermaid block each. For a structurally incomplete artifact, stop before planning and use `AskUserQuestion` to offer direct continuation with `/spec-uc`.
+8. Confirm a normal file covers one complete externally meaningful primary-actor goal. If it is only an endpoint, button, CRUD operation, validation, internal component, or flow-step fragment—or if it bundles independent goals, triggers, or outcomes—stop before planning and use `AskUserQuestion` to offer direct continuation with `/spec-uc`. Do not split, merge, or compensate for its boundary during implementation.
 
-If requested behavior is absent or implementation discovery exposes a missing product decision, stop and return to `/spec-uc`. Never modify a specification to rationalize accidental code behavior.
+Confirm the selected use case is linked under at least one existing requirement in the domain catalog. A missing or stale owning-requirement link is foundation drift; stop before planning and use `AskUserQuestion` to offer direct continuation with `/spec-domain`.
+
+If requested behavior is absent or implementation discovery exposes a missing product decision, stop dependent work and use `AskUserQuestion` to offer direct continuation with `/spec-uc`. Never modify a specification to rationalize accidental code behavior.
 
 ## Specification Authority and Conflicts
 
 Accepted specifications govern intended behavior. Repository rules and architecture govern implementation choices, and code and tests establish observed implementation; they do not override an accepted contract. Treat a mismatch as implementation drift.
 
-If specification artifacts conflict, stop before planning or editing implementation and identify the exact contradiction for human resolution. Return product-definition, domain-boundary, requirement, Entity Model, shared-policy, or shared-terminology conflicts to `/spec-domain`. Return conflicts in one interaction's goal, boundary, flow, outcome, or status to `/spec-uc`.
+If specification artifacts conflict, stop before planning or editing implementation and identify the exact contradiction. For a product-definition, domain-boundary, requirement, Entity Model, cross-use-case invariant, or shared-terminology conflict, use `AskUserQuestion` to offer direct continuation with `/spec-domain`. For a conflict in one interaction's goal, boundary, flow, outcome, or status, use `AskUserQuestion` to offer direct continuation with `/spec-uc`.
 
 ## Stage 1 — Inspect and Plan
 
 1. Trace the installed or public execution path.
 2. Locate existing responsibilities, domain types, validation, error boundaries, reusable utilities, and relevant tests.
 3. Compare current observable behavior with every relevant accepted specification: the root and domain catalogs, Entity Model, selected use case, and related accepted use cases whose contracts overlap.
-4. For a normal use case, verify the required Behavior Diagrams overview is syntactically valid with an available renderer, or manually inspect it and report renderer unavailability. Verify any named process diagrams against the authoritative text and return contradictions to `/spec-uc`.
+4. For a normal use case, verify the required Behavior Diagrams overview is syntactically valid with an available renderer, or manually inspect it and report renderer unavailability. Verify any named process diagrams against the authoritative text; when they contradict it, use `AskUserQuestion` to offer direct continuation with `/spec-uc` before planning implementation.
 5. Determine whether the implementation already conforms. If it does, plan only the necessary verification and status result; do not manufacture code changes.
 6. Otherwise identify the smallest coherent behavioral delta while preserving unrelated architecture and user changes.
 7. Map the contract to verification:
 
 | Specification Source | Required Evidence |
 |---|---|
+| Owning requirement capabilities, guarantees, and constraints | Applicable behavioral and compatibility evidence |
 | Actors | Authentication, authorization, and caller-context setup |
 | Preconditions | Test fixture and initial state |
 | Trigger | Public entry action that starts the behavior |
@@ -58,7 +64,7 @@ If specification artifacts conflict, stop before planning or editing implementat
 | Alternate Flow | Variation test when meaningful |
 | Exception Flow | Defined error-path test |
 | Postcondition | Observable result or final-state assertion |
-| Entity Model policy or constraint | Applicable regression evidence |
+| Entity Model property constraint or concept invariant | Applicable regression evidence |
 
 Present:
 
@@ -88,7 +94,7 @@ Present:
 ## Risks and Non-Goals
 ```
 
-Use the host's native plan-and-approval mechanism when available. An implementation plan is a transient planning record, not a `docs/spec` artifact; do not store it under `docs/spec`. Do not edit code, tests, or status before approval.
+Use the host's native plan-and-approval mechanism when available. This is the sole actionable gate that does not use `AskUserQuestion`; do not duplicate implementation-plan approval through `AskUserQuestion`. An implementation plan is a transient planning record, not a `docs/spec` artifact; do not store it under `docs/spec`. Do not edit code, tests, or status before approval. If baseline discovery later requires a material plan choice or replan, use `AskUserQuestion` to resolve that choice and then refresh the native plan approval before resuming dependent work.
 
 ## Stage 2 — Establish the Baseline
 
@@ -104,11 +110,11 @@ After approval:
 
 - Follow repository architecture, naming, error-handling, compatibility, and testing rules.
 - Reuse the responsibility that already owns the behavior.
-- Keep changes focused on the approved use case and applicable Entity Model policies and constraints.
+- Keep changes focused on the approved use case and applicable Entity Model property constraints and concept invariants.
 - Preserve explicit failure behavior and unchanged-state guarantees.
 - Do not implement behavior absent from the approved contract.
 - Do not add numeric use-case references or metadata solely for traceability.
-- Stop dependent work and return to `/spec-uc` when a missing product decision appears.
+- If a missing product decision appears, stop dependent work and use `AskUserQuestion` to offer direct continuation with `/spec-uc`; resume only after the specification is accepted and the implementation plan is refreshed as needed.
 
 ## Stage 4 — Derive and Run Tests
 
@@ -126,7 +132,7 @@ Tests assert observable behavior and postconditions rather than private structur
 Review the final implementation against:
 
 - domain scope and requirements;
-- applicable Entity Model policies and constraints;
+- applicable Entity Model property constraints and concept invariants;
 - actors and their access context;
 - every precondition and the trigger;
 - every main-flow step;
@@ -141,12 +147,12 @@ Report exact command results and distinguish pre-existing, introduced, skipped, 
 Promote `Approved` to `Implemented` only when:
 
 - production code conforms;
-- behavior-derived tests protect applicable flows, policies, and outcomes;
+- behavior-derived tests protect applicable flows, property constraints, concept invariants, and outcomes;
 - required focused validation passes.
 
 If evidence is incomplete, leave `Approved`. A behavior-preserving refactor may retain `Implemented` after tests pass. `Implemented` does not mean deployed, enabled in production, operationally healthy, or free from every defect.
 
-For an `Approved Removal` artifact, delete the use-case file and its domain-catalog row only after the specified behavior and behavior-derived tests are removed or updated, the required observable absence is verified, and all required validation passes. Until then, preserve the artifact and catalog row so interrupted work remains recoverable. Report the final result as `Removed`; no status file remains.
+For an `Approved Removal` artifact, delete the use-case file and every owning-requirement link only after the specified behavior and behavior-derived tests are removed or updated, the required observable absence is verified, and all required validation passes. Until then, preserve the artifact and links so interrupted work remains recoverable. Report the final result as `Removed`; no status file remains.
 
 ## Completion Report
 
@@ -159,12 +165,13 @@ For an `Approved Removal` artifact, delete the use-case file and its domain-cata
 
 | Contract | Implementation and Test Evidence |
 |---|---|
+| Owning requirement contract | [Evidence] |
 | Actors | [Evidence] |
 | Preconditions and Trigger | [Evidence] |
 | Main Flow | [Evidence] |
 | Alternate or Exception Flow | [Evidence] |
 | Postconditions | [Evidence] |
-| Entity Model policy or constraint | [Evidence] |
+| Entity Model property constraint or concept invariant | [Evidence] |
 
 ## Changed Files
 
@@ -177,4 +184,4 @@ For an `Approved Removal` artifact, delete the use-case file and its domain-cata
 [Approved, Implemented, or Removed, with reason.]
 ```
 
-Do not create a separate implementation-status file, dashboard entry, requirement map, persistent project plan, or duplicate status in a catalog.
+Do not create a separate implementation-status file, dashboard entry, persistent project plan, duplicate catalog status, or requirement map outside the domain catalog. When completion or a blocker creates an actionable specification next step, use `AskUserQuestion` to offer direct continuation with `/spec-uc` or `/spec-domain`; invoke the selected skill with the artifact and reason, and provide an exact command only when invocation is unavailable or denied.

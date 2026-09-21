@@ -2,23 +2,18 @@
 
 set -euo pipefail
 
-SKILLS=(spec-domain spec-uc spec-impl)
-TARGET=""
-FORCE=0
+SKILLS=(spec-domain spec-uc spec-impl spec-reconcile)
 STAGES=()
 NEW_STAGE=""
 
 usage() {
   cat <<'EOF'
-Usage: bash install.sh <claude|codex|all> [--force]
+Usage: bash install.sh
 
-Installs the skills globally for the selected host:
-  claude  $HOME/.claude/skills
-  codex   $HOME/.agents/skills
-  all     both destinations
+Installs the skills globally for Claude Code and replaces installed copies:
+  $HOME/.claude/skills
 
 Options:
-  --force  Replace installed skills when their contents differ.
   -h, --help
 EOF
 }
@@ -40,13 +35,6 @@ trap cleanup EXIT
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    claude|codex|all)
-      [[ -z "$TARGET" ]] || fail "specify only one installation target"
-      TARGET="$1"
-      ;;
-    --force)
-      FORCE=1
-      ;;
     -h|--help)
       usage
       exit 0
@@ -59,14 +47,8 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-[[ -n "$TARGET" ]] || {
-  usage >&2
-  fail "installation target is required"
-}
-
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 CLAUDE_DIR="$HOME/.claude/skills"
-CODEX_DIR="$HOME/.agents/skills"
 
 validate_sources() {
   local skill source declared_name
@@ -90,7 +72,7 @@ new_stage() {
   NEW_STAGE="$stage"
 }
 
-prepare_claude() {
+prepare_skills() {
   local stage skill
   stage="$1"
   for skill in "${SKILLS[@]}"; do
@@ -99,53 +81,10 @@ prepare_claude() {
   done
 }
 
-prepare_codex() {
-  local stage skill source destination
-  stage="$1"
-  for skill in "${SKILLS[@]}"; do
-    source="$SCRIPT_DIR/$skill/SKILL.md"
-    destination="$stage/$skill/SKILL.md"
-    mkdir -p "$stage/$skill"
-    awk '
-      BEGIN { frontmatter = 0 }
-      NR == 1 && $0 == "---" { frontmatter = 1; print; next }
-      frontmatter && $0 == "---" { frontmatter = 0; print; next }
-      frontmatter && /^(argument-hint|disable-model-invocation|user-invocable):/ { next }
-      {
-        gsub("Use when explicitly invoked", "Use when")
-        gsub("`/spec-domain`", "`$spec-domain`")
-        gsub("`/spec-uc`", "`$spec-uc`")
-        gsub("`/spec-impl`", "`$spec-impl`")
-        print
-      }
-    ' "$source" > "$destination"
-  done
-}
-
-preflight() {
-  local stage destination host skill installed
-  stage="$1"
-  destination="$2"
-  host="$3"
-
-  for skill in "${SKILLS[@]}"; do
-    installed="$destination/$skill"
-    if [[ -e "$installed" || -L "$installed" ]]; then
-      if diff -qr "$stage/$skill" "$installed" >/dev/null 2>&1; then
-        continue
-      fi
-      if [[ "$FORCE" -ne 1 ]]; then
-        fail "$host skill '$skill' already exists with different contents at $installed; rerun with --force to replace it"
-      fi
-    fi
-  done
-}
-
 install_stage() {
-  local stage destination host skill source installed backup
+  local stage destination skill source installed backup
   stage="$1"
   destination="$2"
-  host="$3"
 
   for skill in "${SKILLS[@]}"; do
     source="$stage/$skill"
@@ -153,7 +92,7 @@ install_stage() {
 
     if [[ -e "$installed" || -L "$installed" ]]; then
       if diff -qr "$source" "$installed" >/dev/null 2>&1; then
-        printf '%s: %s already installed\n' "$host" "$skill"
+        printf 'Claude Code: %s already installed\n' "$skill"
         continue
       fi
 
@@ -170,47 +109,14 @@ install_stage() {
       mv "$source" "$installed"
     fi
 
-    printf '%s: installed %s to %s\n' "$host" "$skill" "$installed"
+    printf 'Claude Code: installed %s to %s\n' "$skill" "$installed"
   done
 }
 
 validate_sources
+new_stage "$CLAUDE_DIR"
+prepare_skills "$NEW_STAGE"
+install_stage "$NEW_STAGE" "$CLAUDE_DIR"
 
-CLAUDE_STAGE=""
-CODEX_STAGE=""
-
-if [[ "$TARGET" == "claude" || "$TARGET" == "all" ]]; then
-  new_stage "$CLAUDE_DIR"
-  CLAUDE_STAGE="$NEW_STAGE"
-  prepare_claude "$CLAUDE_STAGE"
-fi
-
-if [[ "$TARGET" == "codex" || "$TARGET" == "all" ]]; then
-  new_stage "$CODEX_DIR"
-  CODEX_STAGE="$NEW_STAGE"
-  prepare_codex "$CODEX_STAGE"
-fi
-
-# Check every requested destination before changing any installed skill.
-if [[ -n "$CLAUDE_STAGE" ]]; then
-  preflight "$CLAUDE_STAGE" "$CLAUDE_DIR" "Claude Code"
-fi
-if [[ -n "$CODEX_STAGE" ]]; then
-  preflight "$CODEX_STAGE" "$CODEX_DIR" "Codex"
-fi
-
-if [[ -n "$CLAUDE_STAGE" ]]; then
-  install_stage "$CLAUDE_STAGE" "$CLAUDE_DIR" "Claude Code"
-fi
-if [[ -n "$CODEX_STAGE" ]]; then
-  install_stage "$CODEX_STAGE" "$CODEX_DIR" "Codex"
-fi
-
-if [[ "$TARGET" == "claude" || "$TARGET" == "all" ]]; then
-  printf '%s\n' 'Claude Code commands: /spec-domain, /spec-uc, /spec-impl'
-  printf '%s\n' 'Start a new Claude Code session to load newly installed user skills.'
-fi
-if [[ "$TARGET" == "codex" || "$TARGET" == "all" ]]; then
-  printf '%s\n' 'Codex skills: $spec-domain, $spec-uc, $spec-impl'
-  printf '%s\n' 'Codex normally detects new skills automatically; restart it if they do not appear.'
-fi
+printf '%s\n' 'Claude Code commands: /spec-domain, /spec-uc, /spec-impl, /spec-reconcile'
+printf '%s\n' 'Start a new Claude Code session to load newly installed user skills.'
