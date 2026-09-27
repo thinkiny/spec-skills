@@ -7,7 +7,7 @@ argument-hint: "[request]"
 
 # Specify Domain
 
-Create, reconstruct, or revise the specification foundation for one bounded product domain. Before this workflow is adopted, existing code, tests, plans, and documentation are evidence for human review. After `docs/spec/catalog.md` exists, `docs/spec/` is authoritative for intended behavior, while code and tests remain evidence of observed implementation.
+Create, reconstruct, or revise the specification foundation for one bounded product domain. Before this workflow is adopted, existing code, tests, plans, and documentation are evidence for human review. After `docs/spec/catalog.md` exists, semantic specification artifacts in `docs/spec/` are authoritative for intended behavior, while implementation records, code, and tests remain evidence of observed implementation.
 
 Standalone use-case semantics are owned by `/spec-uc`. When a foundation change affects accepted use cases, `/spec-domain` owns discovery, combined review, approval, and atomic application of the complete coordinated set in one workflow.
 
@@ -21,14 +21,15 @@ Call `AskUserQuestion` whenever a user decision is needed before recording a sem
 
 Use the host-provided **Other** response for free text; do not define a duplicate option. At an authorization gate, only selection of the named action authorizes it; otherwise treat entered text as feedback or an alternative proposal.
 
-An actionable stage gate is a point where the user must authorize a persisted state transition, choose whether work advances, or transfer control to another specification skill. Use `AskUserQuestion` at every actionable stage gate; narrative text alone never authorizes advancement. In this workflow, answers to semantic questions refine only the in-conversation proposal; they never authorize Write/Edit. After final approval, deterministic writing, validation, recovery, and status calculation continue without another prompt.
+An actionable stage gate is a point where the user must authorize a persisted state transition, choose whether work advances, or transfer control to another specification skill. Use `AskUserQuestion` at every actionable stage gate; narrative text alone never authorizes advancement. In this workflow, answers to semantic questions refine only the in-conversation proposal; they never authorize Write/Edit. After final approval, deterministic writing, validation, recovery, and status calculation continue without another prompt. Once validation finishes, use a separate named handoff gate for any implementation follow-up.
 
 For a cross-skill handoff, ask whether to continue and name the target skill, artifact, reason, and recommended action. If the user selects the named continuation action, immediately invoke the target through the host's skill mechanism with the resolved path and intent. Never invoke another skill merely because it appears relevant. If invocation is unavailable or permission is denied, preserve the current state, report the limitation, and provide the exact manual command as a fallback. When returning to `/spec-reconcile`, invoke it with the resolved domain so reconciliation can rediscover that scoped repository state.
 
 ## Invariants
 
 - Store specifications only under `docs/spec/`.
-- Each domain owns one `domain.md`, one `entity-model.md`, and flat numbered use cases created by `/spec-uc`.
+- Each domain owns one `domain.md`, one `entity-model.md`, root-level numbered use cases, and optional matching observed-code records under `implementation/`.
+- A use case and implementation record pair by sequence and slug. The record is observed-code evidence, not semantic authority, and may be absent when code does not yet exist. When it exists, the use case contains exactly one canonical `Implementation` link immediately below `Status`; the link is navigation metadata, not semantic content.
 - The root catalog contains product context, specification authority, the shared path convention, and one linked heading with a one-sentence description per domain.
 - Domain documents contain no use-case status, owner, date, or progress fields.
 - Existing non-specification documents remain where they are unless the user separately requests a move.
@@ -43,9 +44,9 @@ Stop on specification contradictions. Resolve product, domain, requirement, Enti
 ## Stage 1 — Discover and Propose
 
 1. Read the repository's `AGENTS.md`, `CLAUDE.md`, or equivalent instructions.
-2. Read `docs/spec/catalog.md` when present and inspect neighboring domain documents and Entity Models.
-3. Inspect relevant product documents, source, tests, and historical plans, using Specification Authority to distinguish intended behavior from implementation evidence.
-4. Separate stated intent, observed behavior, implementation drift, contradictions, gaps, and assumptions. Surface conflicts inside the specification set instead of resolving them from code.
+2. Read `docs/spec/catalog.md` when present and inspect neighboring domain documents, Entity Models, root-level use cases, and matching implementation records.
+3. Use each existing `docs/spec/<domain>/implementation/<sequence>-<slug>.md` record as the first source of observed-code evidence. Before relying on a record, confirm that the paired use-case forward link and record backlink resolve, every `Locations` Markdown link resolves to a repository file, its named entry symbols still exist, and its focused test names or explicit `Missing` gaps remain accurate. Inspect the linked locations further only when confirmation is needed; broaden source discovery only when the record is missing, stale, contradictory, or insufficient for a concrete foundation question. For an existing accepted use case with no matching record and no known behavioral drift, offer paired `Capture` through `/spec-impl <domain> <sequence>`; for a stale accepted-use-case record with no known behavioral drift, offer paired `Refresh`. Do not create or refresh a record for a `Draft` or `Review` from this workflow. Only code with no use case uses unpaired `/spec-impl <domain> <capture request>`. Pass the preserved workflow origin so the completed Capture returns to this domain workflow rather than looping through `/spec-uc`.
+4. Inspect relevant product documents, focused source, tests, and historical evidence, using Specification Authority to distinguish intended behavior from implementation evidence. Separate stated intent, observed behavior, implementation drift, contradictions, gaps, and assumptions. Surface conflicts inside the specification set instead of resolving them from code.
 5. Bound the domain around one coherent product capability. Propose smaller domains when the vocabulary or responsibility is not comfortably reviewable as one unit.
 6. Identify coherent requirement contracts, each with its capabilities and only the guarantees, constraints, and candidate use cases that it owns. Identify Entity Model external concepts, owned concepts and properties, relationships and cardinalities, shared value types, and concept-local invariants. Represent closed enumeration values in their owning property rows; do not create global policy, constraint, or enumeration sections.
 7. Assign every normative statement to exactly one owning location before proposing artifacts: a property constraint, a concept-local invariant, a domain requirement, or one use case. Do not persist this ownership analysis.
@@ -95,6 +96,7 @@ When a proposed domain or Entity Model change affects existing `Approved` or `Im
 7. Behavior-neutral drift may be rebased only by updating the summary and recapturing pre-images. Semantic drift, changed membership, a newly discovered decision, or a newly discovered conflicting proposal invalidates the whole-set approval. Write nothing—or restore captured pre-images if application started—then resolve the issue through `AskUserQuestion`, rebuild the summary, and obtain whole-set approval again.
 8. Otherwise use Write/Edit to apply the complete approved foundation and use-case set in one uninterrupted application phase. Cross-validate the complete set before reporting success.
 9. If a write or validation fails, finish the exact approved set when doing so needs no new semantics; otherwise restore every coordinator-owned target to its captured content or nonexistence and validate the restoration. Never report partial application as success. If restoration fails, report the workflow as blocked and inconsistent.
+10. After a coordinated application validates, identify every finalized accepted member whose behavior changed or whose implementation record is missing or stale. For each member, offer **Continue to `/spec-impl <domain> <sequence>`** or **Stop after specification** through `AskUserQuestion`; process selected members one at a time. Select the first applicable mode: `Removal` for an `Approved Removal`; `Execute` for changed, missing, incomplete, or drifting accepted behavior regardless of whether a record exists; `Capture` when current code has no record and no behavioral drift is known; and `Refresh` when behavior is not known to drift but an existing record is stale. Use `Execute` for newly accepted behavior when no implementation exists. A stop ends the handoff loop without changing specification state. Rediscover the domain and remaining members after each return.
 
 ### Coordinated Use-Case Contract
 
@@ -107,7 +109,7 @@ For every normal finalized member:
 - keep normal steps ordered and branches inline at their divergence points, with an explicit Resume, Continuation, or Outcome; use Entity Model terminology; and introduce no architecture, implementation tasks, test cases, or duplicate acceptance-criteria section; and
 - preserve the approved path and sequence, apply the resulting status rule above, and omit `## Open Questions`.
 
-An `Approved Removal` member is the only structural exception. It contains exactly one H1, exactly one visible `**Status:** Approved` line, exactly one `## Approved Removal` section with exactly these fields: `Interaction to remove`, `Required observable absence`, and `Final verification`, no other sections, and no `## Open Questions` heading. Preserve its path and every `docs/spec` reference until `/spec-impl` verifies removal.
+An `Approved Removal` member is the only structural exception. It contains exactly one H1, exactly one visible `**Status:** Approved` line, the canonical `Implementation` line only when a matching record exists, exactly one `## Approved Removal` section with exactly these fields: `Interaction to remove`, `Required observable absence`, and `Final verification`, no other sections, and no `## Open Questions` heading. Preserve its path and every `docs/spec` reference until `/spec-impl` verifies removal.
 
 ## Stage 2 — Write After Explicit Approval
 
@@ -118,7 +120,7 @@ After selection of the applicable named approval action:
 3. Apply the complete set with Write/Edit in one uninterrupted specification-only phase. For a Coordinated Domain Change, use the combined membership and recovery contract above; never defer accepted members to separate review commands.
 4. For a new or existing domain, preserve unrelated catalog entries, requirement contracts, use-case links, and detailed use cases; create or update only the approved focused deltas and avoid regenerating reviewed documents.
 5. Cross-validate the complete write set. If writing or validation fails, finish the exact approved set only when no new semantics are needed; otherwise restore every captured pre-image or nonexistence and validate the restoration. Report failed restoration as blocked and inconsistent.
-6. Do not persist evidence lists, traceability IDs, lifecycle history, or generated metadata in the specification set.
+6. Do not persist evidence lists, traceability IDs, lifecycle history, generated metadata, or implementation details in semantic specification artifacts. Preserve any canonical forward navigation link unchanged unless an approved coordinated rename requires its mechanical rewrite. `/spec-impl` owns deciding whether a paired record exists; paired records remain outside this skill's write set.
 
 For ordinary foundation changes, create or update the canonical root catalog, `domain.md`, and `entity-model.md` as required. When the root catalog exists, preserve its product definition, Specification Authority section, Structure section, and unrelated domain entries unless the approved change explicitly includes them. Omit a requirement's `Use cases` field until a linked use-case file exists, and route an affected standalone use-case change through the named `/spec-uc` continuation rather than writing it here.
 
@@ -151,13 +153,16 @@ Each domain uses the same layout:
 <domain>/
 ├── domain.md
 ├── entity-model.md
-└── NNN-<use-case>.md
+├── NNN-<use-case>.md
+└── implementation/
+    └── NNN-<use-case>.md
 ```
 
 - `domain.md` defines the domain, its boundary, and self-contained requirement contracts with their owning use-case links.
 - `entity-model.md` defines external concepts, one relationship diagram, owned concepts and properties, concept-local invariants, and optional shared value types.
-- `NNN-<use-case>.md` defines one observable system use case.
-- Use-case sequence numbers are append-only and local to the domain.
+- `NNN-<use-case>.md` defines one observable system use case. When its matching implementation record exists, it contains exactly one `Implementation` link immediately below `Status`; otherwise it omits that line.
+- `implementation/NNN-<use-case>.md` optionally records its current verified code path and tests and links back to the use case; it is observed-code evidence, not semantic authority.
+- Use-case sequence numbers are append-only and local to the domain root.
 
 ## Domains
 
@@ -279,10 +284,11 @@ Before reporting completion:
 - Confirm every target matched the reviewed baseline before writing and the complete write set was applied and cross-validated or every captured pre-image was restored and validated.
 - For a coordinated application, confirm the discovered accepted-member list equals the applied use-case set, no conflicting `Draft` or `Review` remains, every member has the approved path, sequence, structure, diagram projection, and resulting status, and no finalized member contains `## Open Questions`.
 - Confirm no partial application is reported as success and any failed restoration is reported as blocked and inconsistent.
-- Confirm no status dashboard, owner/date field, identifier registry, persisted implementation plan, or code traceability instruction was introduced.
+- Confirm no status dashboard, owner/date field, identifier registry, persisted implementation plan, implementation detail, or code traceability instruction was introduced into semantic specification artifacts; every existing canonical forward link is preserved and resolves, and paired implementation records remain unchanged.
+- For a coordinated application, confirm the post-validation `/spec-impl` handoff was offered for every affected accepted member with its resolved domain, sequence, and mode, or that the user selected **Stop after specification**.
 
 ## Handoff
 
-Report only a concise outcome with changed paths, resulting state, approved decisions, unresolved blockers, affected use cases, validation, and recovery. Do not echo complete files or require another command to apply an already approved coordinated set. For an actionable next stage, offer a named continuation through `AskUserQuestion`; invoke that skill only when the user selects it, and provide an exact command only when invocation is unavailable or denied.
+Report only a concise outcome with changed paths, resulting state, approved decisions, unresolved blockers, affected use cases, validation, and recovery. Do not echo complete files or require another command to apply an already approved coordinated set. After validation, offer the named `/spec-impl <domain> <sequence>` continuation for each affected accepted member, with its mode and a **Stop after specification** action. Invoke that skill only when the user selects it, and provide an exact command only when invocation is unavailable or denied.
 
 When `/spec-domain` is continued from `/spec-reconcile <domain>` for a selected-domain conflict, preserve the supplied base/ours/theirs/current-worktree evidence, change only that foundation or multi-use-case conflict, and never stage or complete the Git merge. After resolution, offer a named continuation back to `/spec-reconcile <domain>`; if selected, invoke it with the original domain so it rediscovers the scoped set before any deterministic repair.

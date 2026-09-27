@@ -1,13 +1,13 @@
 ---
 name: spec-reconcile
-description: Reconcile one docs/spec domain after or during a Git merge, preserving reviewed content while repairing deterministic domain-document, root-catalog entry, link, and concurrent use-case sequence conflicts, then identify use cases that may be consolidated. Use when explicitly invoked with a domain.
+description: Reconcile one docs/spec domain after or during a Git merge, preserving reviewed content while repairing deterministic domain-document, paired implementation-record, link, and concurrent use-case sequence conflicts, then identify use cases that may be consolidated. Use when explicitly invoked with a domain.
 user-invocable: true
 argument-hint: "<domain>"
 ---
 
 # Reconcile Domain Specifications
 
-Reconcile one `docs/spec` domain after or during a Git merge. This workflow owns deterministic structural repair only. `/spec-domain` owns foundation conflicts, and `/spec-uc` owns interaction semantics and any proposed use-case consolidation.
+Reconcile one `docs/spec` domain after or during a Git merge. This workflow owns deterministic structural repair only. `/spec-domain` owns foundation conflicts, `/spec-uc` owns interaction semantics and any proposed use-case consolidation, and `/spec-impl` owns implementation-record flow-card content and code conformance.
 
 ## Input and Scope
 
@@ -15,7 +15,7 @@ The user supplies an existing domain slug or `docs/spec/<domain>` path. Resolve 
 
 The selected domain scopes the workflow:
 
-- Read and write its domain document, Entity Model, and every use case.
+- Read and write its domain document, Entity Model, every root-level numbered use case, and every matching record under `implementation/`.
 - Read the root catalog and update only the selected domain entry when required.
 - Read all `docs/spec` references to selected-domain paths. Outside-domain files may change only to rewrite a confirmed selected-domain path; preserve all other content.
 - Leave every other domain, non-spec conflict, application file, and test untouched. Report relevant outside-scope conflicts without resolving them.
@@ -26,7 +26,7 @@ Use the host-provided **Other** response for free text; do not define a duplicat
 - Treat the committed merge base, merge parents, index stages, working tree, and staged, unstaged, and untracked selected-domain work as inputs.
 - Before any write, record every coordinator-owned path, its exact content or nonexistence, and its index-stage identity.
 - Never run `git add`, `git commit`, `git merge --continue`, `git checkout`, `git restore`, or any command that alters the index or discards content.
-- Never resolve semantics by choosing ours, theirs, the base, the newest file, or a majority. Offer **Resolve through `/spec-domain`**, **Resolve through `/spec-uc`**, or **Stop and leave the domain unchanged**, as applicable.
+- Never resolve semantics by choosing ours, theirs, the base, the newest file, or a majority. Offer **Resolve through `/spec-domain`**, **Resolve through `/spec-uc`**, **Resolve through `/spec-impl`**, or **Stop and leave the domain unchanged**, as applicable.
 - Invoke another skill only through its named continuation action. Preserve the selected domain in every handoff and return.
 - Apply a complete deterministic write set or restore every captured pre-image. Never report partial repair as success.
 
@@ -61,8 +61,9 @@ Read the complete selected-domain specification set and inventory:
 
 - its root-catalog entry, domain document, and Entity Model;
 - every use-case path, sequence, title, status, and body;
+- every implementation-record path, paired use case, use-case forward link, record backlink, fragment link, card heading, `Locations` file link, and body;
 - owning-requirement links and all `docs/spec` references to selected-domain paths;
-- duplicate sequences, missing or stale links, conflict markers, and malformed canonical structure.
+- duplicate sequences, missing or stale links, orphaned implementation records, pairing mismatches, conflict markers, and malformed canonical structure.
 
 Classify every difference before writing.
 
@@ -75,10 +76,12 @@ A change is mechanical only when one exact result preserves semantic text and st
 - canonical domain-document, root-catalog-entry, and link formatting;
 - links to files present in the final selected-domain set;
 - concurrent use-case sequence allocation under Stage 3;
-- references to a confirmed selected-domain path change; and
+- references to a confirmed selected-domain path change;
+- creation, removal, or repair of a use-case `Implementation` link when the unique sequence-and-slug pairing makes the result exact;
+- a paired implementation-record rename caused solely by a confirmed use-case sequence or slug change, plus its use-case forward link, `Use Case` backlink, and uniquely determined fragment-link rewrites; and
 - malformed structure whose correction is uniquely derivable without semantic change.
 
-Different same-path content, a likely duplicate actor goal, and any non-unique structural repair are semantic. Route foundation structure to `/spec-domain` and use-case structure to `/spec-uc`.
+Different same-path content, a likely duplicate actor goal, conflicting implementation-record flow cards, and any non-unique structural repair are semantic. Route foundation structure to `/spec-domain`, use-case structure to `/spec-uc`, and implementation-record content to `/spec-impl`.
 
 ### Semantic Conflict
 
@@ -86,23 +89,24 @@ Stop dependent work and present exact evidence for:
 
 - different domain definitions, boundaries, requirements, Entity Models, invariants, or terminology;
 - different identity, title, status, goal, flow, outcome, or removal contract for one use case;
+- different `Entry`, `Flow`, `Locations`, `State`, `Constraints`, or `Tests` content for one implementation record;
 - a new use case that may duplicate an existing actor goal;
 - a foundation change affecting multiple use cases;
 - conflicting uncommitted work; or
 - a conflict marker whose result is not mechanically derivable.
 
-Foundation and multi-use-case invariant conflicts belong to `/spec-domain`. One interaction's identity, boundary, behavior, outcome, or status belongs to `/spec-uc`. Pass the selected domain, paths, base/ours/theirs/current evidence, and reconciliation reason to the chosen skill. On return to `/spec-reconcile <domain>`, rediscover the scoped state from scratch.
+Foundation and multi-use-case invariant conflicts belong to `/spec-domain`. One interaction's identity, boundary, behavior, outcome, or status belongs to `/spec-uc`. Implementation-record content conflicts and accepted-use-case code-conformance findings belong to `/spec-impl`. Pass the selected domain, paths, base/ours/theirs/current evidence, reconciliation reason, and selected implementation mode to the chosen skill. On return to `/spec-reconcile <domain>`, rediscover the scoped state from scratch.
 
 ## Stage 3 — Reconcile Concurrent Use-Case Sequences
 
-Sequences are local to the selected domain and stable for merge-base files. Never fill gaps or change a use case's slug, H1, body, or status while resequencing.
+Sequences are local to the selected domain root and stable for merge-base files. Never fill gaps or change a use case's slug, H1, body, or status while resequencing.
 
 1. Keep every surviving merge-base use case at its sequence.
 2. Identify every use case introduced on either parent after the merge base, including additions Git merged without a textual conflict.
 3. Sort committed additions by their first introducing commit's committer timestamp (`%ct`), then source-relative path.
 4. Append uncommitted additions by current numeric prefix, then relative path. Never use filesystem times.
 5. Allocate the cohort from `max(sequence in the merge base) + 1`; treat an empty merge-base sequence set as zero, so its first allocated sequence is `001`.
-6. Change only numeric prefixes and references to the old selected-domain paths.
+6. Change only numeric prefixes, matching implementation-record filenames, use-case `Implementation` links, record `Use Case` backlinks, uniquely determined fragment links, and references to the old selected-domain paths.
 7. Treat ambiguous provenance, multiple merge bases, unsupported multi-parent cohorts, duplicate identity, destination collisions, and inseparable uncommitted/branch changes as blockers.
 
 The rule covers the complete selected-domain cohort, not only colliding numbers.
@@ -146,12 +150,13 @@ Confirm:
 
 - no unintended conflict marker remains in coordinator-owned paths;
 - the selected root entry, domain document, Entity Model, owning-requirement links, and all selected-domain references resolve;
+- every implementation record pairs with exactly one use case by sequence and slug; that use case has exactly one resolving `Implementation` link immediately below `Status`; the record has exactly one resolving `Use Case` backlink; use cases without records have no `Implementation` line; every optional fragment and `Locations` file link resolves; and each linked location names existing symbols;
 - every `Use cases` field in the domain document is a nested one-link-per-bullet Markdown list;
 - every normal use case has exactly one Goal, Actors, Preconditions, Trigger, Behavior Diagrams, Flow, and Postconditions section;
 - Behavior Diagrams precedes `## Flow`;
 - normal steps are ordered, and alternate and exception branches appear inline at their divergence points with an explicit Resume, Continuation, or Outcome;
 - selected-domain sequences are unique, merge-base sequences and gaps are unchanged, and additions follow the Stage 3 order;
-- every resequenced reference is updated while use-case title, body, status, and canonical structure are preserved;
+- every resequenced reference, use-case forward link, record backlink, and paired implementation-record path is updated while use-case title, semantic body, status, canonical structure, and implementation flow cards are preserved;
 - outside-domain content changed only for confirmed reference rewrites;
 - no application code, tests, unrelated conflict, index state, or merge state changed;
 - staged, unstaged, untracked, and combined coordinator-owned results pass whitespace, structure, and link checks; and
@@ -188,3 +193,5 @@ When candidates exist, call `AskUserQuestion` with **Review consolidation with `
 Report the selected domain, mode, changed paths, sequence map, resolved or remaining blockers, preserved outside-scope work, exact validation results, recovery, and consolidation candidates. Do not echo complete artifacts. Give mode-specific next steps: for **Active Merge**, tell the user to review and stage the repaired paths and continue the merge manually; for **Completed Merge**, tell the user to review and commit the reconciliation changes as appropriate; for **Audit Only**, tell the user to review and stage or commit ordinary repairs as appropriate. Never tell the user to continue a merge outside Active Merge mode.
 
 For unresolved foundation conflicts, offer **Continue with `/spec-domain`** or **Stop reconciliation**. For interaction conflicts, offer **Continue with `/spec-uc`** or **Stop reconciliation**. For a ready mechanical set, offer **Apply complete deterministic set** or **Stop without applying**; free text revises the review. After validated reconciliation, use the Stage 6 consolidation handoff when applicable. Narrative text never authorizes writing or skill continuation.
+
+For an unresolved implementation-record or accepted-use-case conformance issue, offer **Continue to `/spec-impl <domain> <sequence>`** with the applicable mode or **Stop reconciliation**. Select the first applicable mode: `Removal` for an `Approved Removal`; `Execute` when accepted behavior is missing, incomplete, or drifting, regardless of whether a record exists; `Capture` when an accepted use case has current code but no record and no accepted-behavior drift is known; `Refresh` when accepted behavior is not known to drift but existing record content is conflicting or stale, including a record paired with `Review`; and `Verify` when code and record appear complete and conforming but proof must be established. Do not route a `Draft` to any implementation mode. Do not route `Review` behavior to `Capture`, `Execute`, `Verify`, or `Removal`; only reconciliation-scoped `Refresh` may repair an existing record paired with `Review`. Pass the selected domain, sequence, conflicting paths, base/ours/theirs/current evidence, workflow origin, and mode as continuation intent. After `/spec-impl` returns, rediscover the selected domain before applying or reviewing any remaining deterministic repair. `/spec-reconcile` may rename a paired record and repair its forward link, backlink, or uniquely determined fragment links mechanically, but it never edits the meaning of its flow cards.
