@@ -21,7 +21,7 @@ Use the host-provided **Other** response for free text; do not define a duplicat
 
 An actionable stage gate is a point where the user must authorize a persisted state transition, choose whether work advances, or transfer control to another specification skill. Use `AskUserQuestion` at every actionable stage gate; narrative text alone never authorizes advancement. A semantic-answer question authorizes a corresponding persisted `Draft` or `Review` update only when the question explicitly says that selecting the answer will write that update. After an authorized working-artifact update or final approval, deterministic writing, validation, recovery, and status calculation continue without another prompt unless a new decision appears. Once that validation finishes, use a separate named handoff gate for any implementation follow-up.
 
-For a cross-skill handoff, ask whether to continue and name the target skill, artifact, reason, and recommended action. If the user selects the named continuation action, immediately invoke the target through the host's skill mechanism with the resolved path and intent. Never invoke another skill merely because it appears relevant. If invocation is unavailable or permission is denied, preserve the current state, report the limitation, and provide the exact manual command as a fallback. When returning to `/spec-reconcile <domain>`, invoke it with the resolved domain so reconciliation rediscovers that scoped state.
+For a cross-skill handoff, name the target, artifact, and reason, then use one explicit continue-or-stop gate. Invoke the target only after the continue action is selected. If invocation is unavailable, preserve state and provide the exact manual command. A returning caller must rediscover its scope.
 
 ### Implementation Handoff Routing
 
@@ -30,11 +30,11 @@ After an approved use case is validated, select the first applicable `/spec-impl
 | Observed state | Mode | Purpose |
 |---|---|---|
 | The use case is an `Approved Removal` | `Removal` | Remove behavior, verify absence, and clean up both records. |
-| A resolved split or consolidation proposal over accepted use cases redistributes existing implementation flows | `Reshape` | Prepare the exact paired record set without writing; return it for final review and the approved semantic write set. |
-| Accepted behavior is absent, incomplete, or drifting, with or without a record | `Execute` | Implement or repair the accepted behavior and refresh the complete record. |
-| Existing code has no matching implementation record and no accepted-behavior drift is known | `Capture` | Inventory the current flows and create the paired record without changing behavior. |
-| Accepted behavior is not known to drift, but code changed and the existing record is stale | `Refresh` | Re-inventory current flows and update the record. |
-| Code and record appear complete and conforming | `Verify` | Confirm conformance and required proof. |
+| A resolved split or consolidation changes ownership of existing optional records | `Reshape` | Prepare concise destination records without writing and return them for final review. |
+| Accepted behavior is absent, incomplete, or drifting, with or without a record | `Execute` | Implement or repair the accepted behavior and refresh a record only when one exists or is requested. |
+| The user wants durable navigation for conforming code | `Capture` | Create the optional compact record without changing behavior. |
+| Code changed and an existing record is stale | `Refresh` | Update its summary, entry, key locations, and verification state. |
+| Code appears complete and conforming | `Verify` | Confirm complete behavioral conformance and proof; a record is not required. |
 
 If behavior must change, use `Execute` even when no record exists. Use `Capture` only for record creation around current code with no known accepted-behavior drift.
 
@@ -49,7 +49,7 @@ Read:
 5. matching implementation records under `docs/spec/<domain>/implementation/` when present; and
 6. repository instructions and focused code, tests, and documents as evidence.
 
-For a new or reconstructed use case, read the matching implementation record first when a paired path already exists. Before relying on it, confirm that the use-case forward link and record backlink resolve, every `Locations` Markdown link resolves to a repository file, its named entry symbols still exist, and its focused test names or explicit `Missing` gaps remain accurate. Use its `Entry`, `Flow`, `Locations`, optional `State`, optional `Constraints`, and `Tests` cards as observed-code evidence, then inspect only the linked locations needed to confirm or resolve a concrete ambiguity. Broaden source discovery only when the record is missing, stale, contradictory, or insufficient. When no use case exists and current code must be reconstructed, offer a named **Capture through `/spec-impl <domain> <capture request>`** continuation to capture the code path without writing an unpaired record; preserve this `/spec-uc` workflow as the origin and mark the Capture as pending. If selected, consume its returned evidence, complete the semantic workflow, and after approval resume the pending Capture with the final path so it can revalidate and persist the paired record. Distinguish observed implementation from intended behavior, and surface any mismatch for review. Translate confirmed behaviorally material logic into one integrated flow whose normal steps carry inline alternate and exception branches, followed by postconditions; do not persist function names, architecture, private control flow, or implementation details in the use-case file. Preserve the canonical forward navigation link when a paired record exists and omit it otherwise.
+For a new or reconstructed use case, use a matching implementation record as initial navigation when present. Confirm its backlink, entry, linked locations, and verification summary, then inspect the linked code needed to resolve the behavior. Broaden discovery when the record is missing, stale, contradictory, or insufficient. When no use case exists and current code must be reconstructed, a named unpaired `Capture` may gather evidence in conversation; after approval it persists a compact record only when the user requested one. Distinguish observed implementation from intended behavior and translate confirmed observable logic into one integrated flow without function names, architecture, private control flow, or other implementation detail.
 
 If the domain document or Entity Model does not exist, stop without writing and use `AskUserQuestion` to offer direct continuation with `/spec-domain` for the resolved domain path.
 
@@ -76,7 +76,7 @@ If specification artifacts conflict, stop and identify the exact contradiction f
 | Intended behavior changes to an `Approved` or `Implemented` use case | Capture the exact current accepted content and status; then offer **Save Review** or **Stop without saving**. |
 | Existing persisted `Draft` or `Review` | Follow Draft and Review Iteration. |
 | Wording changes without behavioral effect | Apply a focused editorial edit and preserve status. |
-| Title or path rename without behavioral effect | Preserve sequence and status; move the use case and any matching implementation record, update the use-case forward link, record backlink, and affected fragment links, and rewrite all `docs/spec` references as one complete write set without changing flow cards. |
+| Title or path rename without behavioral effect | Preserve sequence and status; move any matching implementation record, update its backlink, and rewrite all `docs/spec` references as one complete write set without changing record content. |
 | A requested rename changes the actor goal, boundary, or behavior | Treat it as a semantic revision; move the working artifact only after the user selects the named rename action. |
 | One file contains multiple independent goals | Prepare and gate one recoverable `Draft` or `Review` split set; retain the original sequence for the closest goal. |
 | Multiple files may describe one actor goal | Re-read the complete candidate set and follow Consolidate Similar Use Cases; never treat another skill's proposal as proof. |
@@ -131,10 +131,10 @@ Use this concise summary at the start of a new working artifact, when scope chan
 - **Public entry path, material decisions, validation, authorization, state changes, and external effects:**
 - **Retries, visible failures, and differences from intended behavior:**
 
-## Domain Impact
+## Foundation Check
 
-- **Owning domain requirement impact:** [Unchanged, or the exact `Capabilities`, `Guarantees`, or `Constraints` delta required by this use-case change and why.]
-- **Entity Model impact:** [Unchanged, or the exact external concept, relationship, diagram, concept, property, invariant, or Shared Value Type delta required and why.]
+- **Owning requirements:** [Accurate, or requires `/spec-domain` review and why.]
+- **Entity Model:** [Accurate, or requires `/spec-domain` review and why.]
 
 ## Decisions Needed
 
@@ -147,15 +147,15 @@ For removal with no enduring interaction, summarize the interaction to remove, i
 
 The summary exposes material choices without reproducing the artifact. Do not print the complete artifact as response content; write only confirmed behavior, and keep only unresolved matters in `## Open Questions`.
 
-After re-reading targets, compare the proposed use-case behavior with every owning requirement's `Capabilities`, `Guarantees`, and `Constraints` in the domain document. Record whether each owning requirement remains accurate; if not, identify the exact requirement delta as part of Domain Impact. Also prepare the remaining semantic delta without writing it. Ask and wait on every required decision before using Write/Edit. Update a `Draft` or `Review` only after its named save action or an answer that explicitly disclosed the update. Never preserve `Implemented` after a semantic revision.
+After re-reading targets, compare the proposed use-case behavior with every owning requirement's `Capabilities`, `Guarantees`, and `Constraints`. Record whether the foundation remains accurate. If any requirement or Entity Model change is needed, stop dependent approval and offer continuation through `/spec-domain`; do not prepare or write that foundation delta here. Ask and wait on every use-case decision before using Write/Edit. Update a `Draft` or `Review` only after its named save action or an answer that explicitly disclosed the update. Never preserve `Implemented` after a semantic revision.
 
-A use-case-owned domain requirement or Entity Model delta remains an unpersisted part of the proposal while any member is `Draft` or `Review`. Rediscover it before final approval and include it in the approved write set. If it changes domain scope, shared terminology, Entity Model structure, or multiple use cases, continue through `/spec-domain` instead.
+Domain requirements and Entity Models are never use-case-owned write targets. After `/spec-domain` resolves a required foundation change, rediscover the use case against that accepted foundation before approval.
 
-When all decisions are resolved, remove `## Open Questions` and offer **Mark Approved** or **Keep Draft/Review**; free text revises the proposal. Only **Mark Approved** authorizes finalization. Re-read the complete write set first; if a new decision appears, return it to the working artifact. When a split or consolidation needs `Reshape`, complete that preparation and include its exact record set in the final review before offering **Mark Approved**. Finalize every split member as one unit, and create an `Approved Removal` artifact only through the same approval gate.
+When all decisions are resolved, remove `## Open Questions` and offer **Mark Approved** or **Keep Draft/Review**; free text revises the proposal. Only **Mark Approved** authorizes finalization. Re-read the complete write set first; if a new decision appears, return it to the working artifact. When a split or consolidation needs `Reshape`, complete that preparation and include any prepared optional record changes in the final review before offering **Mark Approved**. Finalize every split member as one unit, and create an `Approved Removal` artifact only through the same approval gate.
 
 ### Complete Write Sets and Recovery
 
-Treat every semantic operation that changes multiple paths—including creation and owning-requirement linking, rename, split, consolidation, deletion, abandonment, final approval, and a directly owned foundation delta—as one complete write set. Before its first write, re-read all targets, verify the authorized baseline and membership, and capture each exact pre-image or nonexistence. Apply and cross-validate the whole set. If a write or validation fails, finish that exact set only when no new semantics are needed; otherwise restore every pre-image and validate restoration. Report failed restoration as blocked and inconsistent.
+Treat every semantic operation that changes multiple use-case or reference paths—including creation and owning-requirement linking, rename, split, consolidation, deletion, abandonment, and final approval—as one complete write set. Before its first write, re-read all targets, verify the authorized baseline and membership, and capture each exact pre-image or nonexistence. Apply and cross-validate the whole set. If a write or validation fails, finish that exact set only when no new semantics are needed; otherwise restore every pre-image and validate restoration. Report failed restoration as blocked and inconsistent.
 
 ## Status Rules
 
@@ -174,13 +174,7 @@ Status appears as one visible line below the H1 and nowhere else:
 **Status:** Draft
 ```
 
-When a paired implementation record exists, place exactly one navigation line immediately below `Status`:
-
-```markdown
-**Implementation:** [Implementation record](implementation/NNN-use-case.md)
-```
-
-Omit the line when no record exists. The link carries no behavioral or conformance authority. `/spec-impl` owns ordinary record creation or removal with the paired record; a prepared `Reshape` set is applied by this skill as part of the approved split or consolidation write set. This skill preserves existing links and rewrites them as part of an approved rename or prepared reshape.
+Implementation records are reverse-linked from their `Use Case` line and are not required to appear in the semantic use-case file. `/spec-impl` owns ordinary record creation or removal; a prepared `Reshape` set is applied by this skill as part of the approved split or consolidation write set. This skill does not add implementation navigation to use-case files.
 
 Do not add frontmatter, owner, reviewer, date, version, deployment, progress, or status history to use-case files or domain documents.
 
@@ -202,8 +196,6 @@ Use this structure when creating or incrementally updating a persisted `Draft` o
 # [Use Case]
 
 **Status:** [Draft, Review, or Approved]
-
-**Implementation:** [Implementation record](implementation/NNN-use-case.md)
 
 ## Goal
 
@@ -227,7 +219,7 @@ Use this structure when creating or incrementally updating a persisted `Draft` o
 ### Overview
 
 ```mermaid
-[Compact projection of the currently confirmed primary behavior]
+[Concise UI-independent projection of the confirmed goal, decisions, state transitions, and outcomes]
 ```
 
 ### [Nested Process]
@@ -261,24 +253,25 @@ Use this structure when creating or incrementally updating a persisted `Draft` o
 - [Unresolved product decision or behavior still under discussion.]
 ````
 
-The displayed `Implementation` line is conditional: retain it exactly when the paired record exists and omit it otherwise.
+The use-case file does not contain an implementation navigation line.
 
-A working `Draft` or `Review` may leave conditional sections incomplete, but it must not invent unresolved behavior. An `Approved` artifact meets the complete-structure and diagram rules in Validation.
+A persisted `Draft` or `Review` keeps every canonical section and a Mermaid Overview of confirmed behavior. It may be behaviorally incomplete, but unresolved choices stay in `## Open Questions` and are never invented. An `Approved` artifact removes `## Open Questions` and is behaviorally complete.
 
 ## Writing Rules
 
 - Keep one complete externally meaningful primary-actor goal per file, from its observable trigger through meaningful postconditions.
 - Actors are external participants, not controllers, services, databases, internal workers, or UI components.
 - Preconditions are true before step one; checks performed by the system belong in the flow.
-- Top-level ordered items form the normal path and are active, atomic, and externally observable.
+- Top-level ordered items form the normal path and describe externally observable behavior at useful interaction granularity.
 - Place each expected variation or visible failure directly beneath its divergence step as a nested bullet labeled `**Alternate — [Name]**` or `**Exception — [Name]**`. When the same branch can diverge at multiple steps, place it beneath the earliest applicable step and name the complete step set or range in its label rather than duplicating the branch.
 - When a branch diverges at the Trigger and cannot meaningfully attach to step 1, place it before the first normal step with the label `**Alternate at Trigger — [Name]**` or `**Exception at Trigger — [Name]**`.
 - Give each branch a nested ordered list and finish it with exactly one explicit `**Resume:**`, `**Continuation:**`, or `**Outcome:**` statement. A branch that resumes names the top-level flow step; a branch that continues alongside other items states that continuation; a terminal branch states its observable outcome.
 - Preserve top-level numbering for the normal path; nested branch steps do not renumber it.
-- Postconditions state guarantees, including unchanged or recovered failure state.
+- Postconditions state guarantees and unchanged or recovered failure state without repeating completed flow steps.
 - Put an always-valid rule involving multiple properties, states, or connected concepts under the owning concept's `#### Invariants`; keep a one-property rule in that property's `Constraints` cell. Express interaction-specific behavior directly in flow steps, inline branches, and postconditions.
 - Use concept, property, and Shared Value Type names exactly as defined in `entity-model.md`.
-- Do not include architecture, function names, tables, framework mechanics, implementation tasks, test cases, or a separate acceptance-criteria section.
+- Include only UI behavior needed to understand what the actor can perceive, understand, or do. Prefer intent such as `receives warning treatment` or `can inspect the reason`; omit colors, icons, tooltips, component names, layout mechanics, and styling unless the user explicitly identifies one as a product requirement.
+- Do not include architecture, endpoints, function names, framework mechanics, persistence design, implementation tasks, test cases, or a separate acceptance-criteria section.
 
 Behavior Diagrams:
 
@@ -287,7 +280,9 @@ Behavior Diagrams:
 - may contain up to three named process subsections, each with exactly one fenced `mermaid` block, only when they simplify a complex nested process;
 - use `flowchart` for decision-heavy behavior, `sequenceDiagram` for participant exchanges and ordering, or `stateDiagram-v2` for lifecycle transitions;
 - project the authoritative textual flow;
-- keep the overview compact by summarizing the normal path and material decisions rather than duplicating every inline branch;
+- show the actor goal, material decisions, state transitions, and outcomes with short verb-first labels;
+- remain independent of UI composition and styling: no rows, buttons, cards, drawers, colors, icons, tooltips, components, or layout mechanics;
+- keep the overview compact rather than duplicating every inline branch;
 - introduce no behavior absent from the text;
 - map every diagram branch to a normal flow step or an inline alternate or exception branch;
 - use Entity Model terms and observable behavior;
@@ -302,8 +297,6 @@ When an accepted removal leaves no enduring interaction, replace the existing us
 
 **Status:** Approved
 
-**Implementation:** [Implementation record](implementation/NNN-use-case.md)
-
 ## Approved Removal
 
 - **Interaction to remove:** [Existing actor goal and trigger that must cease to exist.]
@@ -311,9 +304,9 @@ When an accepted removal leaves no enduring interaction, replace the existing us
 - **Final verification:** [Observable evidence required before deleting this file and removing or safely rewriting every `docs/spec` reference.]
 ```
 
-The displayed `Implementation` line is conditional and follows the same pairing rule as a normal use case.
+The use-case file does not contain an implementation navigation line.
 
-This is the only exception to the normal required use-case structure. It contains exactly one H1, exactly one visible `**Status:** Approved` line, the canonical `Implementation` line only when a matching record exists, exactly one `## Approved Removal` section, exactly one of each displayed field, no other sections, and no `## Open Questions` heading. Preserve the existing title, path, sequence, matching implementation record, forward link, owning-requirement links, and other references while removal is pending. Do not include implementation design or status history. `/spec-impl` deletes the artifact and matching implementation record and removes or safely rewrites every `docs/spec` reference only after removing the behavior and behavior-derived tests, verifying the required absence, and then validating the final specification state.
+This is the only exception to the normal required use-case structure. It contains exactly one H1, exactly one visible `**Status:** Approved` line, exactly one `## Approved Removal` section, exactly one of each displayed field, no other sections, and no `## Open Questions` heading. Preserve the existing title, path, sequence, owning-requirement links, other references, and any matching implementation record while removal is pending. Do not include implementation design or status history. `/spec-impl` deletes the artifact and, when present, its matching implementation record and removes or safely rewrites every `docs/spec` reference only after removing the behavior and behavior-derived tests, verifying the required absence, and then validating the final specification state.
 
 ## Consolidate Similar Use Cases
 
@@ -325,9 +318,9 @@ Use this path only when the user directly requests consolidation or selects a `/
 4. Except for an all-`Draft` candidate, resolve or abandon every open `Draft` or `Review` before consolidation. For all-`Draft` candidates, present the proposed survivor and sequence, combined confirmed behavior, unresolved questions, absorbed paths, link and reference changes, and every behavior to preserve. Offer **Consolidate Drafts** or **Keep Drafts Separate**; free text revises the proposal, and consolidation never promotes status.
 5. On **Consolidate Drafts**, use the complete-write-set procedure to write the combined survivor as `Draft`, remove absorbed Draft paths, replace their owning-requirement links with survivor links wherever they materially implement the requirement, and update every other `docs/spec` reference. Preserve every confirmed behavior and unresolved question from the source Drafts.
 6. For accepted candidates, capture an exact accepted baseline for every path. Present the proposed survivor and sequence, combined observable behavior, absorbed paths, link changes, source statuses, resulting `Approved` status, and every behavior that must be preserved.
-7. Inventory current implementation flows and the paired record for every accepted source. If final consolidation would absorb more than one record, any source with current implementation code lacks a complete usable record, or the survivor's flow cards or specification-flow links would change, offer **Continue to `/spec-impl <domain> <sequence>` in `Reshape` mode** after the semantic proposal is resolved. Pass every affected source and destination path in the continuation intent; `/spec-impl` prepares the exact survivor-record content from current verified code without writing it, then returns to this workflow. A single complete record may be mechanically renamed and relinked only when it already covers every current source flow and no card content changes. When no source has implementation code or a record, omit the survivor record and forward link. Do not discard implementation flows merely because a use-case path is absorbed.
-8. Keep every accepted source and implementation record unchanged during discussion. Offer **Save consolidation Review** or **Keep Sources Unchanged**; only the save action may replace the proposed survivor with a Review backed by its captured baseline. Absorbed accepted paths, records, and links remain until final approval.
-9. On **Mark Approved**, use the complete-write-set procedure to write the survivor as `Approved`, apply the exact `/spec-impl`-prepared survivor record and forward link, perform the one eligible mechanical record-and-link move, or omit both when no implementation exists. Remove absorbed specification and implementation-record paths, replace their owning-requirement links with survivor links wherever they materially implement the requirement, and update every other `docs/spec` reference. If any source was `Implemented`, `/spec-impl` must re-establish conformance.
+7. Inventory any optional records paired with accepted sources. When consolidation changes which use case owns recorded implementation navigation, offer `Reshape` so `/spec-impl` can prepare concise destination records from current code. When no source record exists, no record work is required. A single record may be mechanically renamed only when its summary, entry, locations, and verification remain accurate.
+8. Keep every accepted source and any existing implementation records unchanged during discussion. Offer **Save consolidation Review** or **Keep Sources Unchanged**; only the save action may replace the proposed survivor with a Review backed by its captured baseline. Absorbed accepted paths, records, and links remain until final approval.
+9. On **Mark Approved**, use the complete-write-set procedure to write the survivor as `Approved` and apply an exact `/spec-impl`-prepared survivor record only when one is useful. Remove absorbed specification paths and any matching record paths, replace their owning-requirement links with survivor links wherever they materially implement the requirement, and update every other `docs/spec` reference. If any source was `Implemented`, `/spec-impl` must re-establish conformance.
 10. Absorbing a redundant specification path does not remove product behavior. Preserve every accepted flow and outcome in the survivor; if observable behavior must disappear, use the `Approved Removal` workflow instead.
 11. On abandonment, restore the survivor's exact baseline and leave every other source, record, and link unchanged.
 
@@ -337,37 +330,45 @@ For a behavior-neutral title or path rename:
 
 1. Re-read the use case, its owning requirements, any matching implementation record, and all `docs/spec` references.
 2. Preserve sequence and status.
-3. Treat the use-case move, H1 change, use-case `Implementation` link rewrite, matching record move, record `Use Case` backlink rewrite, affected fragment-link rewrites, and all other reference rewrites as one complete write set. Pair the record to the renamed use case by the same sequence and slug, and preserve every flow card unchanged.
+3. Treat the use-case move, H1 change, all reference rewrites, and—when a matching record exists—its move and `Use Case` backlink rewrite as one complete write set. Preserve existing record content unchanged.
 4. Resolve every changed link and confirm the old path is no longer referenced.
 
-For a semantic rename, prepare the destination as part of the recoverable `Draft` or `Review` set. Move it only after the user selects the named rename action, and finalize it separately through **Mark Approved**. When a paired implementation record exists, move it in the same recoverable write set, update its H1 and `Use Case` backlink, rewrite the use-case forward link and affected fragment links, and preserve every flow card unchanged. This mechanical pairing does not claim conformance; after approval, route any behavioral drift or stale card content through the applicable implementation mode.
+For a semantic rename, prepare the destination as part of the recoverable `Draft` or `Review` set. Move it only after the user selects the named rename action. When an optional record exists, move it in the same recoverable write set, update its H1 and backlink, and preserve its content unless the behavior change makes it stale.
 
 ## Update or Finalize a Use Case
 
-1. Re-read targets, owning requirements, sequence allocation, and any accepted baseline. Compare the proposed use-case behavior with each owning requirement's `Capabilities`, `Guarantees`, and `Constraints`; explicitly classify the requirement contract as unchanged or identify the exact required delta. Prepare the remaining semantic delta without editing. Put resolved answers in their behavioral sections; keep only deferred or insufficiently answered matters in `## Open Questions`.
+1. Re-read targets, owning requirements, sequence allocation, and any accepted baseline. Classify the foundation as accurate or requiring `/spec-domain`; do not design its delta here. Prepare only the interaction delta, putting resolved answers in their behavioral sections and only unresolved matters in `## Open Questions`.
 2. Use the named save action or an explicitly disclosed semantic-answer write before updating a `Draft` or `Review`. Save a new `Draft` and its nested owning-requirement links as one complete write set. Save a `Review` only after capturing its exact current accepted baseline.
-3. For a split, prepare all members and links as one write set. Preserve the original sequence for the closest goal and allocate new sequences for the others. When the source has an implementation record, offer **Continue to `/spec-impl <domain> <sequence>` in `Reshape` mode** after the semantic split is resolved and before final approval. Pass the source and proposed destination paths in the continuation intent so it can prepare the exact paired record set and forward links from current verified code without writing them. Do not offer **Mark Approved** until that prepared set returns and is included unchanged in the final review; never guess how flow cards divide among the new goals.
-4. When no open decision remains and any required `Reshape` preparation has returned, verify the complete write set, structure, and diagram consistency, then offer **Mark Approved**. Only that selection writes `Approved`. Apply a split's prepared record set atomically with its approved members and links, then follow the split status and abandonment rules above.
+3. For a split, prepare all members and links as one write set. Preserve the original sequence for the closest goal and allocate new sequences for the others. When the source has an optional implementation record, use `Reshape` after the semantic split is resolved so current navigation can be assigned accurately; no record is required for a destination.
+4. When no open decision remains and any required `Reshape` preparation has returned, verify the complete write set, structure, and diagram consistency, then offer **Mark Approved**. Only that selection writes `Approved`. Apply any prepared optional record changes atomically with the approved members and links, then follow the split status and abandonment rules above.
 5. For consolidation, follow Consolidate Similar Use Cases; never delete an accepted source before the complete set receives **Mark Approved**.
 6. For an approved removal with no enduring interaction, write the `Approved Removal` artifact and preserve every `docs/spec` reference to it for `/spec-impl`.
 7. Apply renames and reference rewrites through the complete-write-set procedure.
-8. Keep the smallest directly required domain requirement or Entity Model delta unpersisted until **Mark Approved**, then include it in the final complete write set. Route a domain-scope, shared-terminology, structural Entity Model, or multi-use-case change to `/spec-domain` without writing it here.
+8. If the use case requires any domain requirement or Entity Model change, stop before **Mark Approved** and continue through `/spec-domain`. After that workflow returns, rediscover the accepted foundation and resume use-case review without writing foundation files here.
 9. Keep each normative statement in one layer, preserve unrelated reviewed content, and change no application code or tests.
-10. After validation finishes for an approved use case or `Approved Removal`, use `AskUserQuestion` to offer **Continue to `/spec-impl <domain> <sequence>`** or **Stop after specification**. Include the selected mode from Implementation Handoff Routing in the continuation intent. A complete `Implemented` review with no drift may recommend stopping. When a pending unpaired Capture supplied the evidence, use the caller-specific resume in Handoff instead and do not offer this generic gate. After identifying implementation drift before approval, offer the same handoff after the semantic decision is resolved.
+10. After validation finishes for an approved use case or `Approved Removal`, offer **Continue to `/spec-impl <domain> <sequence>`** or **Stop after specification** with the selected implementation mode. If a pending Capture supplied the evidence, offer its resume action instead. A conforming `Implemented` review may recommend stopping.
 
 ## Validation
+
+After approval, rename, split, or consolidation when implementation pairing may change, run the shared mechanical checker for the affected domain when available:
+
+```bash
+python3 "$HOME/.claude/skills/spec-validator/validate_spec.py" docs/spec/<domain>
+```
+
+Within the selected domain, it checks the required catalog and foundation files, domain navigation and ownership links, use-case structure and diagrams, sequence uniqueness, local links, and optional implementation records. It does not replace semantic, diagram, code, or behavior validation.
 
 - Every actionable transition or cross-skill continuation was authorized by selection of its named `AskUserQuestion` action; narrative or free text did not advance the workflow.
 - A semantic answer wrote a `Draft` or `Review` only when its question explicitly disclosed the affected persisted update.
 - Every `Review` has one exact captured accepted baseline; abandonment restores it and its links, including removal of Review-only split paths.
-- Every use-case semantic change was checked against each owning requirement's `Capabilities`, `Guarantees`, and `Constraints` in the domain document; Domain Impact explicitly records either no requirement change or the exact required delta.
-- A `Draft` or `Review` contains confirmed behavior, keeps only unresolved matters in `## Open Questions`, remains ineligible for implementation, and does not persist a domain requirement or Entity Model delta.
+- Every use-case semantic change was checked against each owning requirement's `Capabilities`, `Guarantees`, and `Constraints`; Foundation Check records either no foundation change or a required `/spec-domain` handoff.
+- A `Draft` or `Review` keeps the canonical sections and Overview, contains only confirmed behavior, keeps unresolved matters in `## Open Questions`, remains ineligible for implementation, and does not change the domain foundation.
 - Every multi-path semantic operation was applied and cross-validated as one complete write set or fully restored from captured pre-images.
 - No semantic specification file was written before its required decision and named authorization.
 - Promotion to `Approved` occurred only after every decision was resolved and **Mark Approved** was selected.
 - Foundation-led coordinated accepted members were neither reviewed nor written here; `/spec-domain` owns their combined review and application.
 - A normal `Approved` use-case artifact conforms to the Canonical Working Use-Case Structure, Writing Rules, and Behavior Diagrams rules.
-- A `Draft` or `Review` contains all currently confirmed sections and does not fabricate unresolved behavior to satisfy the template.
+- A `Draft` or `Review` contains every canonical section while projecting only confirmed behavior and does not fabricate unresolved behavior to fill it.
 - The file spans one complete externally meaningful primary-actor goal from observable trigger through meaningful success and failure postconditions.
 - Expected variants, retries, validation failures, permission failures, and other visible failures remain inline branches when they serve the same goal; independently valuable goals, triggers, or outcomes are split.
 - The boundary was not created merely from an endpoint, button, CRUD operation, screen, internal component, validation, or individual step.
@@ -376,17 +377,19 @@ For a semantic rename, prepare the destination as part of the recoverable `Draft
 - Terminology matches the Entity Model, and every referenced non-primitive type or concept is defined there.
 - Use-case flow steps, inline branches, and postconditions do not duplicate Entity Model property constraints or concept-local invariants.
 - Domain requirements are elaborated rather than copied.
+- The flow contains only essential UI intent; current styling, widgets, layout, and component mechanics are omitted unless explicitly contractual.
+- Every diagram is concise and UI-independent while preserving the material goal, decisions, state transitions, and outcomes.
 - Mermaid syntax and text/diagram consistency were checked with an available renderer, or manual inspection and renderer unavailability are reported.
 - An `Approved Removal` artifact contains exactly its canonical H1, Approved status, section, and three fields, preserves its existing path and every `docs/spec` reference while pending, and has no other section or `## Open Questions` heading.
 - A rename preserves sequence and status, updates the H1, every owning-requirement link, and every affected `docs/spec` reference, leaves no unintended duplicate, and resolves every changed link.
 - A consolidation proposal was independently verified as one actor goal; shared vocabulary or implementation alone did not justify it.
 - Accepted consolidation sources remained unchanged until final approval; the survivor preserves every accepted behavior, absorbed sequences are not reused, and deletion removes redundant specification paths rather than product behavior.
-- Every root-level numbered use-case file is linked under at least one existing requirement it materially implements; every `Use cases` field in the domain document is a nested Markdown list with one link per bullet; each matching implementation record pairs by sequence and slug, has exactly one resolving use-case forward link and one resolving record backlink, and has only resolving fragment links; use cases without records have no `Implementation` line; all specification links resolve and sequence rules hold.
+- Every root-level numbered use-case file is linked under at least one existing requirement it materially implements; each optional implementation record pairs by sequence and slug, has one resolving backlink and resolving location links; all specification links resolve and sequence rules hold.
 
 ## Handoff
 
-Report only a concise outcome with classification, confirmed behavioral delta, changed paths, resulting status, unresolved decisions, and validation. Do not echo complete specification contents. At final review, offer **Mark Approved** or **Keep Draft/Review**; free text revises the proposal and never approves. After validation, offer the named `/spec-impl <domain> <sequence>` handoff or **Stop after specification** as required above, except when the caller-specific Capture return applies. Invoke the target only through the named continuation action; provide an exact command only when invocation is unavailable or denied.
+Report only a concise outcome with classification, confirmed behavioral delta, changed paths, resulting status, unresolved decisions, and validation. Do not echo complete specification contents. At final review, offer **Mark Approved** or **Keep Draft/Review**; free text revises the proposal and never approves. After validation, offer the applicable implementation or pending-Capture handoff and an explicit stop action.
 
-When a pending unpaired `/spec-impl` Capture supplied the evidence, whether it originated here or invoked this workflow, after the use case is approved and validated offer **Resume pending `/spec-impl` Capture** or **Stop without saving the implementation record**. This replaces the generic post-validation implementation handoff. The return includes the preserved workflow origin, resolved domain, sequence, slug, and captured evidence. The Capture revalidates and persists the paired record, then returns only to its preserved origin; a direct implementation-originated Capture does not return to `/spec-uc` again.
+When a pending unpaired `/spec-impl` Capture supplied the evidence, after approval offer **Resume pending Capture** or **Stop without saving the implementation record** instead of the generic implementation handoff. Return the resolved domain, sequence, slug, and captured evidence; `/spec-impl` revalidates before saving.
 
 When `/spec-uc` is continued from `/spec-reconcile <domain>` for a conflict or consolidation proposal, preserve the supplied domain and base/ours/theirs/current-worktree evidence. For conflicts, change only the selected semantic issue; for consolidation, independently verify every candidate and follow Consolidate Similar Use Cases. Never stage or complete the Git merge. Return the consolidation decision and evidence, then offer a named continuation back to `/spec-reconcile <domain>`; if selected, invoke it with the original domain so it rediscovers the scoped set without re-proposing an unchanged rejected group.

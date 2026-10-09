@@ -1,13 +1,13 @@
 ---
 name: spec-reconcile
-description: Reconcile one docs/spec domain after or during a Git merge, preserving reviewed content while repairing deterministic domain-document, paired implementation-record, link, and concurrent use-case sequence conflicts, then identify use cases that may be consolidated. Use when explicitly invoked with a domain.
+description: Reconcile one docs/spec domain after or during a Git merge, preserving reviewed content while repairing deterministic domain-document, optional implementation-record, link, and concurrent use-case sequence conflicts, then identify use cases that may be consolidated. Use when explicitly invoked with a domain.
 user-invocable: true
 argument-hint: "<domain>"
 ---
 
 # Reconcile Domain Specifications
 
-Reconcile one `docs/spec` domain after or during a Git merge. This workflow owns deterministic structural repair only. `/spec-domain` owns foundation conflicts, `/spec-uc` owns interaction semantics and any proposed use-case consolidation, and `/spec-impl` owns implementation-record flow-card content and code conformance.
+Reconcile one `docs/spec` domain after or during a Git merge. This workflow owns deterministic structural repair only. `/spec-domain` owns foundation conflicts, `/spec-uc` owns interaction semantics and proposed consolidation, and `/spec-impl` owns optional implementation-record content and code conformance.
 
 ## Input and Scope
 
@@ -61,7 +61,7 @@ Read the complete selected-domain specification set and inventory:
 
 - its root-catalog entry, domain document, and Entity Model;
 - every use-case path, sequence, title, status, and body;
-- every implementation-record path, paired use case, use-case forward link, record backlink, fragment link, card heading, `Locations` file link, and body;
+- every optional implementation-record path, paired use case, backlink, summary, entry, `Locations` link, verification declaration, and body;
 - owning-requirement links and all `docs/spec` references to selected-domain paths;
 - duplicate sequences, missing or stale links, orphaned implementation records, pairing mismatches, conflict markers, and malformed canonical structure.
 
@@ -77,11 +77,10 @@ A change is mechanical only when one exact result preserves semantic text and st
 - links to files present in the final selected-domain set;
 - concurrent use-case sequence allocation under Stage 3;
 - references to a confirmed selected-domain path change;
-- creation, removal, or repair of a use-case `Implementation` link when the unique sequence-and-slug pairing makes the result exact;
-- a paired implementation-record rename caused solely by a confirmed use-case sequence or slug change, plus its use-case forward link, `Use Case` backlink, and uniquely determined fragment-link rewrites; and
+- a matching implementation-record rename, when present, caused solely by a confirmed use-case sequence or slug change, plus its `Use Case` backlink; and
 - malformed structure whose correction is uniquely derivable without semantic change.
 
-Different same-path content, a likely duplicate actor goal, conflicting implementation-record flow cards, and any non-unique structural repair are semantic. Route foundation structure to `/spec-domain`, use-case structure to `/spec-uc`, and implementation-record content to `/spec-impl`.
+Different same-path content, a likely duplicate actor goal, conflicting implementation-record content, and any non-unique structural repair are semantic. Route foundation structure to `/spec-domain`, use-case structure to `/spec-uc`, and implementation-record content to `/spec-impl`.
 
 ### Semantic Conflict
 
@@ -89,7 +88,7 @@ Stop dependent work and present exact evidence for:
 
 - different domain definitions, boundaries, requirements, Entity Models, invariants, or terminology;
 - different identity, title, status, goal, flow, outcome, or removal contract for one use case;
-- different `Entry`, `Flow`, `Locations`, `State`, `Constraints`, or `Tests` content for one implementation record;
+- different implementation summary, `Entry`, `Locations`, or `Verification` content for one implementation record;
 - a new use case that may duplicate an existing actor goal;
 - a foundation change affecting multiple use cases;
 - conflicting uncommitted work; or
@@ -106,7 +105,7 @@ Sequences are local to the selected domain root and stable for merge-base files.
 3. Sort committed additions by their first introducing commit's committer timestamp (`%ct`), then source-relative path.
 4. Append uncommitted additions by current numeric prefix, then relative path. Never use filesystem times.
 5. Allocate the cohort from `max(sequence in the merge base) + 1`; treat an empty merge-base sequence set as zero, so its first allocated sequence is `001`.
-6. Change only numeric prefixes, matching implementation-record filenames, use-case `Implementation` links, record `Use Case` backlinks, uniquely determined fragment links, and references to the old selected-domain paths.
+6. Change only numeric prefixes, matching implementation-record filenames and `Use Case` backlinks when records are present, and references to the old selected-domain paths.
 7. Treat ambiguous provenance, multiple merge bases, unsupported multi-parent cohorts, duplicate identity, destination collisions, and inseparable uncommitted/branch changes as blockers.
 
 The rule covers the complete selected-domain cohort, not only colliding numbers.
@@ -144,19 +143,28 @@ If no deterministic change exists, proceed directly to validation without an app
 
 ## Stage 5 — Validate the Reconciled Domain
 
+After deterministic repairs, run the shared mechanical checker against the selected domain when available:
+
+```bash
+python3 "$HOME/.claude/skills/spec-validator/validate_spec.py" docs/spec/<domain>
+```
+
+Within the selected domain, it checks the required catalog and foundation files, domain navigation and ownership links, use-case structure and diagrams, sequence uniqueness, local links, and optional implementation records. Keep the selected-domain, path-scoped validation and reconciliation-specific checks below.
+
 Before validation, derive the explicit coordinator-owned path set from the reviewed inventory: the selected domain paths, `docs/spec/catalog.md` only when its selected-domain entry changes, and each outside-domain file receiving a confirmed selected-domain reference rewrite. Use that same set for gating checks; never substitute all of `docs/spec`.
 
 Confirm:
 
 - no unintended conflict marker remains in coordinator-owned paths;
 - the selected root entry, domain document, Entity Model, owning-requirement links, and all selected-domain references resolve;
-- every implementation record pairs with exactly one use case by sequence and slug; that use case has exactly one resolving `Implementation` link immediately below `Status`; the record has exactly one resolving `Use Case` backlink; use cases without records have no `Implementation` line; every optional fragment and `Locations` file link resolves; and each linked location names existing symbols;
+- every implementation record pairs with one use case by sequence and slug, has one resolving `Use Case` backlink, and has resolving `Locations` links;
 - every `Use cases` field in the domain document is a nested one-link-per-bullet Markdown list;
 - every normal use case has exactly one Goal, Actors, Preconditions, Trigger, Behavior Diagrams, Flow, and Postconditions section;
 - Behavior Diagrams precedes `## Flow`;
+- every domain document has a compact Contents section linking Boundary, Requirements, and every requirement heading in document order;
 - normal steps are ordered, and alternate and exception branches appear inline at their divergence points with an explicit Resume, Continuation, or Outcome;
 - selected-domain sequences are unique, merge-base sequences and gaps are unchanged, and additions follow the Stage 3 order;
-- every resequenced reference, use-case forward link, record backlink, and paired implementation-record path is updated while use-case title, semantic body, status, canonical structure, and implementation flow cards are preserved;
+- every resequenced reference and, when present, matching record path and backlink is updated while use-case title, semantic body, status, canonical structure, and record content are preserved;
 - outside-domain content changed only for confirmed reference rewrites;
 - no application code, tests, unrelated conflict, index state, or merge state changed;
 - staged, unstaged, untracked, and combined coordinator-owned results pass whitespace, structure, and link checks; and
@@ -194,4 +202,4 @@ Report the selected domain, mode, changed paths, sequence map, resolved or remai
 
 For unresolved foundation conflicts, offer **Continue with `/spec-domain`** or **Stop reconciliation**. For interaction conflicts, offer **Continue with `/spec-uc`** or **Stop reconciliation**. For a ready mechanical set, offer **Apply complete deterministic set** or **Stop without applying**; free text revises the review. After validated reconciliation, use the Stage 6 consolidation handoff when applicable. Narrative text never authorizes writing or skill continuation.
 
-For an unresolved implementation-record or accepted-use-case conformance issue, offer **Continue to `/spec-impl <domain> <sequence>`** with the applicable mode or **Stop reconciliation**. Select the first applicable mode: `Removal` for an `Approved Removal`; `Execute` when accepted behavior is missing, incomplete, or drifting, regardless of whether a record exists; `Capture` when an accepted use case has current code but no record and no accepted-behavior drift is known; `Refresh` when accepted behavior is not known to drift but existing record content is conflicting or stale, including a record paired with `Review`; and `Verify` when code and record appear complete and conforming but proof must be established. Do not route a `Draft` to any implementation mode. Do not route `Review` behavior to `Capture`, `Execute`, `Verify`, or `Removal`; only reconciliation-scoped `Refresh` may repair an existing record paired with `Review`. Pass the selected domain, sequence, conflicting paths, base/ours/theirs/current evidence, workflow origin, and mode as continuation intent. After `/spec-impl` returns, rediscover the selected domain before applying or reviewing any remaining deterministic repair. `/spec-reconcile` may rename a paired record and repair its forward link, backlink, or uniquely determined fragment links mechanically, but it never edits the meaning of its flow cards.
+For an unresolved implementation-record or accepted-use-case conformance issue, offer **Continue to `/spec-impl <domain> <sequence>`** with the applicable mode or **Stop reconciliation**. Use `Removal` for an `Approved Removal`, `Execute` for missing or drifting behavior, `Refresh` for conflicting or stale existing record content, and `Verify` when conformance proof is needed. The absence of an optional record is not an issue by itself. Do not route a `Draft`; only reconciliation-scoped `Refresh` may repair a record paired with `Review`. After `/spec-impl` returns, rediscover the selected domain. `/spec-reconcile` may rename a paired record and repair its backlink mechanically, but it never edits record meaning.
